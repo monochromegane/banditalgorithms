@@ -1,4 +1,31 @@
+from unittest.mock import patch
+
 from banditalgorithms import epsilon_greedy
+
+
+def test_epilon_greedy_exploitation() -> None:
+    algo = epsilon_greedy.EpsilonGreedy(10)
+    idx_arm = 0
+    algo.update(idx_arm, 10.0)
+
+    with patch.object(algo, "_is_exploitation", return_value=True):
+        assert algo.select() == idx_arm
+
+
+def test_epilon_greedy_exploration() -> None:
+    num_arms = 10
+    algo = epsilon_greedy.EpsilonGreedy(num_arms, seed=1)
+    idx_arm = 0
+    algo.update(idx_arm, 10.0)
+
+    selects = []
+    with patch.object(algo, "_is_exploitation", return_value=False):
+        for _ in range(100):
+            selects.append(algo.select())
+
+    assert max(selects) <= num_arms - 1
+    assert min(selects) >= 0
+    assert len(set(selects) - set([idx_arm])) > 0
 
 
 def test_epsilon_greedy_update() -> None:
