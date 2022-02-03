@@ -1,4 +1,12 @@
-from banditalgorithms import ucb1
+from banditalgorithms import bandit_types, ucb1
+
+
+def test_ucb1_compatible_with_bandit_type() -> None:
+    def new_bandit() -> bandit_types.BanditType:
+        return ucb1.UCB1(1)
+
+    _ = new_bandit()
+    assert True
 
 
 def test_ucb1_select_with_count_zero() -> None:

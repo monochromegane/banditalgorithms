@@ -1,6 +1,14 @@
 from unittest.mock import patch
 
-from banditalgorithms import epsilon_greedy
+from banditalgorithms import bandit_types, epsilon_greedy
+
+
+def test_epsilon_greedy_compatible_with_bandit_type() -> None:
+    def new_bandit() -> bandit_types.BanditType:
+        return epsilon_greedy.EpsilonGreedy(1)
+
+    _ = new_bandit()
+    assert True
 
 
 def test_epilon_greedy_exploitation() -> None:
