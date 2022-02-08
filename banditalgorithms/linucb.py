@@ -13,11 +13,20 @@ class LinUCB:
         self.bs = [np.zeros([dim_context, 1]) for _ in range(num_arms)]
 
     def select(self, ctx: List[float]) -> int:
-        vecCtx = np.c_[np.array(ctx)]
-        return cast(int, np.argmax(self._ucb_scores(vecCtx)))
+        x = np.c_[np.array(ctx)]
+        return cast(int, np.argmax(self._ucb_scores(x)))
 
     def update(self, idx_arm: int, reward: float, ctx: List[float]) -> None:
-        ...
+        x = np.c_[np.array(ctx)]
+
+        self.bs[idx_arm] += reward * x
+        invA = self.invAs[idx_arm]
+        self.invAs[idx_arm] -= (
+            invA.dot(x)
+            .dot(np.linalg.inv(np.eye(1) + x.T.dot(invA).dot(x)))
+            .dot(x.T)
+            .dot(invA)
+        )  # Woodbury
 
     def _ucb_scores(self, x: np.ndarray) -> List[float]:
         return [self._ucb_score(i, x) for i in range(self.num_arms)]
