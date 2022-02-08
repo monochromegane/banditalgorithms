@@ -2,6 +2,8 @@ from typing import List, cast
 
 import numpy as np
 
+from . import inverse_matrix as mat
+
 
 class LinUCB:
     def __init__(self, num_arms: int, dim_context: int, *, alpha: float = 1.0) -> None:
@@ -9,7 +11,7 @@ class LinUCB:
         self.dim_context = dim_context
         self.alpha = alpha
 
-        self.invAs = [np.linalg.inv(np.eye(dim_context)) for _ in range(num_arms)]
+        self.invAs = [mat.InverseMatrix(dim_context) for _ in range(num_arms)]
         self.bs = [np.zeros([dim_context, 1]) for _ in range(num_arms)]
 
     def select(self, ctx: List[float]) -> int:
@@ -20,19 +22,13 @@ class LinUCB:
         x = np.c_[np.array(ctx)]
 
         self.bs[idx_arm] += reward * x
-        invA = self.invAs[idx_arm]
-        self.invAs[idx_arm] -= (
-            invA.dot(x)
-            .dot(np.linalg.inv(np.eye(1) + x.T.dot(invA).dot(x)))
-            .dot(x.T)
-            .dot(invA)
-        )  # Woodbury
+        self.invAs[idx_arm].update(x)
 
     def _ucb_scores(self, x: np.ndarray) -> List[float]:
         return [self._ucb_score(i, x) for i in range(self.num_arms)]
 
     def _ucb_score(self, idx_arm: int, x: np.ndarray) -> float:
-        invA = self.invAs[idx_arm]
+        invA = self.invAs[idx_arm].data
         b = self.bs[idx_arm]
         reward_hat = x.T.dot(invA.dot(b))
         return cast(

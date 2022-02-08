@@ -1,6 +1,7 @@
 import numpy as np
 from banditalgorithms import inverse_matrix
 
+
 def test_inverse_matrix_initialize() -> None:
     dim = 3
     inv = inverse_matrix.InverseMatrix(dim)
@@ -11,7 +12,7 @@ def test_inverse_matrix_initialize() -> None:
 def test_inverse_matrix() -> None:
     dim = 3
     inv = inverse_matrix.InverseMatrix(dim)
-    x = np.c_[np.array([1., 2., 3.])]
+    x = np.c_[np.array([1.0, 2.0, 3.0])]
 
     mat = np.eye(dim)
 

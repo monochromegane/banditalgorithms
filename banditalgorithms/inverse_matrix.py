@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class InverseMatrix:
     def __init__(self, dim: int, lambda_: float = 1.0) -> None:
         self.dim = dim
