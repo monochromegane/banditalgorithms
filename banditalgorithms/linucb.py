@@ -31,6 +31,5 @@ class LinUCB:
         invA = self.invAs[idx_arm].data
         b = self.bs[idx_arm]
         reward_hat = x.T.dot(invA.dot(b))
-        return cast(
-            float, reward_hat + self.alpha * np.sqrt(x.T.dot(invA).dot(x))[0][0]
-        )
+        term_ucb = self.alpha * np.sqrt(x.T.dot(invA).dot(x))
+        return cast(float, (reward_hat + term_ucb)[0][0])
