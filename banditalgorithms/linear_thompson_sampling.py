@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import numpy as np
 
@@ -29,7 +29,24 @@ class LinearThompsonSampling:
         self.bs = [np.zeros([dim_context, 1]) for _ in range(num_arms)]
 
     def select(self, ctx: List[float]) -> int:
-        ...
+        x = np.c_[np.array(ctx)]
+        return cast(int, np.argmax(self._samples(x)))
 
     def update(self, idx_arm: int, reward: float, ctx: List[float]) -> None:
-        ...
+        x = np.c_[np.array(ctx)]
+
+        self.bs[idx_arm] += reward * x
+        self.invAs[idx_arm].update(x)
+
+    def _samples(self, x: np.ndarray) -> List[float]:
+        return [self._sample(i, x) for i in range(self.num_arms)]
+
+    def _sample(self, idx_arm: int, x: np.ndarray) -> float:
+        invA = self.invAs[idx_arm].data
+        b = self.bs[idx_arm]
+
+        mu = invA.dot(b).reshape(-1)
+        SIGMA = self.sigma2 * invA
+        theta_hat = self.random.multivariate_normal(mu, SIGMA)
+
+        return cast(float, theta_hat.dot(x))
