@@ -70,11 +70,11 @@ class AdaptiveThompsonSamplingEstimator:
         self.rewards.append(reward)
         self.xs.append(x)
 
-        if len(self.rewards) <= self.splitting_threshold:
+        N = self.N
+        if len(self.rewards) <= self.splitting_threshold or len(self.rewards) < (2 * N):
             return
 
         t = len(self.xs)
-        N = self.N
         mu_theta_r_t, SIGMA_theta_r_t = self._params_from(t - N, t)
         mu_theta_r_tN, SIGMA_theta_r_tN = self._params_from(t - N * 2, t - N)
 

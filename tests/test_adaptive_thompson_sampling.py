@@ -13,13 +13,28 @@ def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
     assert True
 
 
-def test_estimator_update_when_observations_is_few() -> None:
+def test_estimator_update_when_observations_is_fewer_than_threshold() -> None:
     algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
-        1, 1, splitting_threshold=5
+        1, 1, N=1, splitting_threshold=5
     )
     estimator = algo.estimators[0]
     with patch.object(estimator, "_mahalanobis_distance") as mock_estimator:
         for _ in range(5):
+            ctx = np.ones([1, 1])
+            reward = 1.0
+            estimator.update(reward, ctx)
+
+        mock_estimator.assert_not_called()
+
+
+def test_estimator_update_when_observations_is_fewer_than_2N() -> None:
+    N = 5
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, N=N, splitting_threshold=1
+    )
+    estimator = algo.estimators[0]
+    with patch.object(estimator, "_mahalanobis_distance") as mock_estimator:
+        for _ in range(2 * N - 1):
             ctx = np.ones([1, 1])
             reward = 1.0
             estimator.update(reward, ctx)
