@@ -67,20 +67,25 @@ class AdaptiveThompsonSamplingEstimator:
         self.rewards.append(reward)
         self.xs.append(x)
 
-        t = len(self.xs)
-        N = self.N
-        mu_theta_r_t, SIGMA_theta_r_t = self._params_from(t - N, t)
-        mu_theta_r_tN, SIGMA_theta_r_tN = self._params_from(t - N * 2, t - N)
+        if False:
+            t = len(self.xs)
+            N = self.N
+            mu_theta_r_t, SIGMA_theta_r_t = self._params_from(t - N, t)
+            mu_theta_r_tN, SIGMA_theta_r_tN = self._params_from(t - N * 2, t - N)
 
-        self.distances.append(
-            self._mahalanobis_distance(
-                mu_theta_r_t, SIGMA_theta_r_t, mu_theta_r_tN, SIGMA_theta_r_tN
+            self.distances.append(
+                self._mahalanobis_distance(
+                    mu_theta_r_t, SIGMA_theta_r_t, mu_theta_r_tN, SIGMA_theta_r_tN
+                )
             )
-        )
 
     def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
+        if len(self.xs) == 0:
+            return self.mu_theta, self.SIGMA_theta
+
         xs = self.xs[start:end]
-        rewards = self.xs[start:end]
+        rewards = self.rewards[start:end]
+        r = np.c_[rewards]
 
         F = np.concatenate(xs).T.reshape(-1, self.k)
         SIGMA_r = np.eye(len(rewards)) * self.sigma_r
@@ -90,7 +95,7 @@ class AdaptiveThompsonSamplingEstimator:
 
         SIGMA_theta_r = np.linalg.inv(invSIGMA_theta_r)
         mu_theta_r = SIGMA_theta_r.dot(
-            (F.T.dot(invSIGMA_r).dot(rewards) + invSIGMA_theta.dot(self.mu_theta))
+            (F.T.dot(invSIGMA_r).dot(r) + invSIGMA_theta.dot(self.mu_theta))
         )
 
         return mu_theta_r, SIGMA_theta_r
