@@ -12,6 +12,7 @@ class AdaptiveThompsonSampling:
         sigma_theta: float = 1.0,
         sigma_r: float = 1.0,
         N: int = 10,
+        splitting_threshold: int = 20,
         seed: Optional[int] = None,
     ) -> None:
         self.random = np.random.RandomState(seed)
@@ -20,7 +21,7 @@ class AdaptiveThompsonSampling:
         self.dim_context = dim_context
         self.estimators = [
             AdaptiveThompsonSamplingEstimator(
-                dim_context, sigma_theta, sigma_r, N, self.random
+                dim_context, sigma_theta, sigma_r, N, splitting_threshold, self.random
             )
             for _ in range(num_arms)
         ]
@@ -43,6 +44,7 @@ class AdaptiveThompsonSamplingEstimator:
         sigma_theta: float,
         sigma_r: float,
         N: int,
+        splitting_threshold: int,
         rs: np.random.RandomState,
     ) -> None:
         self.random = rs
@@ -52,6 +54,7 @@ class AdaptiveThompsonSamplingEstimator:
         self.SIGMA_theta = np.eye(k) * sigma_theta
         self.mu_theta = np.zeros([k, 1])
         self.N = N
+        self.splitting_threshold = splitting_threshold
 
         self.rewards: List[float] = []
         self.xs: List[np.ndarray] = []
@@ -67,17 +70,19 @@ class AdaptiveThompsonSamplingEstimator:
         self.rewards.append(reward)
         self.xs.append(x)
 
-        if False:
-            t = len(self.xs)
-            N = self.N
-            mu_theta_r_t, SIGMA_theta_r_t = self._params_from(t - N, t)
-            mu_theta_r_tN, SIGMA_theta_r_tN = self._params_from(t - N * 2, t - N)
+        if len(self.rewards) <= self.splitting_threshold:
+            return
 
-            self.distances.append(
-                self._mahalanobis_distance(
-                    mu_theta_r_t, SIGMA_theta_r_t, mu_theta_r_tN, SIGMA_theta_r_tN
-                )
+        t = len(self.xs)
+        N = self.N
+        mu_theta_r_t, SIGMA_theta_r_t = self._params_from(t - N, t)
+        mu_theta_r_tN, SIGMA_theta_r_tN = self._params_from(t - N * 2, t - N)
+
+        self.distances.append(
+            self._mahalanobis_distance(
+                mu_theta_r_t, SIGMA_theta_r_t, mu_theta_r_tN, SIGMA_theta_r_tN
             )
+        )
 
     def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
         if len(self.xs) == 0:
