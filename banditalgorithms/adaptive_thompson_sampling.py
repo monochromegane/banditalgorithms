@@ -104,4 +104,6 @@ class AdaptiveThompsonSamplingEstimator:
     ) -> float:
         SIGMA = (SIGMA_t + SIGMA_tN) / 2.0
         residual = mu_t - mu_tN
-        return cast(float, residual.T.dot(np.linalg.inv(SIGMA)).dot(residual)[0][0])
+        return cast(
+            float, np.sqrt(residual.T.dot(np.linalg.inv(SIGMA)).dot(residual))[0][0]
+        )
