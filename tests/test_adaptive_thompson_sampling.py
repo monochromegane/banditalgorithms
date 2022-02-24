@@ -1,4 +1,5 @@
 import math
+from unittest.mock import patch
 
 import numpy as np
 from banditalgorithms import adaptive_thompson_sampling, bandit_types
@@ -10,6 +11,20 @@ def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
 
     _ = new_bandit()
     assert True
+
+
+def test_estimator_update_when_observations_is_few() -> None:
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, splitting_threshold=5
+    )
+    estimator = algo.estimators[0]
+    with patch.object(estimator, "_mahalanobis_distance") as mock_estimator:
+        for _ in range(5):
+            ctx = np.ones([1, 1])
+            reward = 1.0
+            estimator.update(reward, ctx)
+
+        mock_estimator.assert_not_called()
 
 
 def test_estimator_params_from_with_zero() -> None:
