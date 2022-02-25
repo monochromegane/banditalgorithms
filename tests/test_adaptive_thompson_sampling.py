@@ -13,6 +13,34 @@ def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_adaptive_thompson_sampling_select() -> None:
+    num_arms = 2
+    dim_context = 1
+    ctx = [1.0]
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(num_arms, dim_context)
+    idx_arm = 0
+
+    for _ in range(100):
+        algo.update(idx_arm, 0.0, ctx)
+        algo.update(idx_arm + 1, 1.0, ctx)
+
+    assert algo.select(ctx) == idx_arm + 1
+
+
+def test_adaptive_thompson_sampling_update() -> None:
+    num_arms = 2
+    dim_context = 1
+    ctx = [1.0]
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(num_arms, dim_context)
+    idx_arm = 0
+
+    for _ in range(100):
+        algo.update(idx_arm, 0.0, ctx)
+
+    assert len(algo.estimators[idx_arm].rewards) == 100
+    assert len(algo.estimators[idx_arm + 1].rewards) == 0
+
+
 def test_estimator_update_when_observations_is_fewer_than_threshold() -> None:
     algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
         1, 1, N=1, splitting_threshold=5

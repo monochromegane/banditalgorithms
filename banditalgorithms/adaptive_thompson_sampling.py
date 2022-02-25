@@ -77,7 +77,7 @@ class AdaptiveThompsonSamplingEstimator:
         mu_theta_r, SIGMA_theta_r = self._params_from(0, len(self.xs))
 
         theta = self.rs.multivariate_normal(mu_theta_r.reshape(-1), SIGMA_theta_r)
-        return cast(float, x.reshape(-1).dot(theta)[0][0])
+        return cast(float, x.reshape(-1).dot(theta))
 
     def update(self, reward: float, x: np.ndarray) -> None:
         self.rewards.append(reward)
