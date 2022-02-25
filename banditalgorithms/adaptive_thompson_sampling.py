@@ -13,6 +13,8 @@ class AdaptiveThompsonSampling:
         sigma_r: float = 1.0,
         N: int = 10,
         splitting_threshold: int = 20,
+        num_bootstrap: int = 10,
+        change_detection_confidence: float = 0.95,
         seed: Optional[int] = None,
     ) -> None:
         self.random = np.random.RandomState(seed)
@@ -21,7 +23,14 @@ class AdaptiveThompsonSampling:
         self.dim_context = dim_context
         self.estimators = [
             AdaptiveThompsonSamplingEstimator(
-                dim_context, sigma_theta, sigma_r, N, splitting_threshold, self.random
+                dim_context,
+                sigma_theta,
+                sigma_r,
+                N,
+                splitting_threshold,
+                num_bootstrap,
+                change_detection_confidence,
+                self.random,
             )
             for _ in range(num_arms)
         ]
@@ -45,9 +54,11 @@ class AdaptiveThompsonSamplingEstimator:
         sigma_r: float,
         N: int,
         splitting_threshold: int,
+        num_bootstrap: int,
+        change_detection_confidence: float,
         rs: np.random.RandomState,
     ) -> None:
-        self.random = rs
+        self.rs = rs
         self.k = k
         self.sigma_theta = sigma_theta
         self.sigma_r = sigma_r
@@ -55,6 +66,8 @@ class AdaptiveThompsonSamplingEstimator:
         self.mu_theta = np.zeros([k, 1])
         self.N = N
         self.splitting_threshold = splitting_threshold
+        self.num_bootstrap = num_bootstrap
+        self.change_detection_confidence = change_detection_confidence
 
         self.rewards: List[float] = []
         self.xs: List[np.ndarray] = []
@@ -63,7 +76,7 @@ class AdaptiveThompsonSamplingEstimator:
     def estimate(self, x: np.ndarray) -> float:
         mu_theta_r, SIGMA_theta_r = self._params_from(0, len(self.xs))
 
-        theta = self.random.multivariate_normal(mu_theta_r.reshape(-1), SIGMA_theta_r)
+        theta = self.rs.multivariate_normal(mu_theta_r.reshape(-1), SIGMA_theta_r)
         return cast(float, x.reshape(-1).dot(theta)[0][0])
 
     def update(self, reward: float, x: np.ndarray) -> None:
@@ -83,6 +96,9 @@ class AdaptiveThompsonSamplingEstimator:
                 mu_theta_r_t, SIGMA_theta_r_t, mu_theta_r_tN, SIGMA_theta_r_tN
             )
         )
+
+        if self._detect_change(self.distances):
+            ...
 
     def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
         if len(self.xs) == 0:
@@ -117,3 +133,29 @@ class AdaptiveThompsonSamplingEstimator:
         return cast(
             float, np.sqrt(residual.T.dot(np.linalg.inv(SIGMA)).dot(residual))[0][0]
         )
+
+    def _detect_change(self, data: List[float]) -> bool:
+        level = self._change_detection_confidence_level(data)
+        return level >= self.change_detection_confidence
+
+    def _change_detection_confidence_level(self, data: List[float]) -> float:
+        N = 0
+        S_diff = self._magnitude_change(data)
+
+        for _ in range(self.num_bootstrap):
+            S_diff_i = self._magnitude_change_bootstrap(data)
+            if S_diff_i < S_diff:
+                N += 1
+
+        return N / self.num_bootstrap
+
+    def _magnitude_change_bootstrap(self, data: List[float]) -> float:
+        samples = self.rs.choice(data, len(data), replace=False)
+        return self._magnitude_change(samples.tolist())
+
+    def _magnitude_change(self, data: List[float]) -> float:
+        average = sum(data) / len(data)
+        diff = [d - average for d in data]
+        S = np.cumsum(diff)
+        S_diff = S.max() - S.min()
+        return cast(float, S_diff)

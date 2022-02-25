@@ -42,6 +42,20 @@ def test_estimator_update_when_observations_is_fewer_than_2N() -> None:
         mock_estimator.assert_not_called()
 
 
+def test_estimator_update() -> None:
+    N = 5
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, N=N, splitting_threshold=1
+    )
+    estimator = algo.estimators[0]
+    for _ in range(2 * N):
+        ctx = np.ones([1, 1])
+        reward = 1.0
+        estimator.update(reward, ctx)
+
+    assert len(estimator.distances) == 1
+
+
 def test_estimator_params_from_with_zero() -> None:
     algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
     estimator = algo.estimators[0]
@@ -107,3 +121,93 @@ def test_estimator_mahalanobis_distance() -> None:
 
     distance = estimator._mahalanobis_distance(mu_0, SIGMA_0, mu_1, SIGMA_1)
     assert np.allclose(distance, math.sqrt(3.0))
+
+
+TS = [
+    10.7,
+    13.0,
+    11.4,
+    11.5,
+    12.5,
+    14.1,
+    14.8,
+    14.1,
+    12.6,
+    16.0,
+    11.7,
+    10.6,
+    10.0,
+    11.4,
+    7.9,
+    9.5,
+    8.0,
+    11.8,
+    10.5,
+    11.2,
+    9.2,
+    10.1,
+    10.4,
+    10.5,
+]
+
+
+def test_estimator_magnitude_change() -> None:
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
+    estimator = algo.estimators[0]
+
+    m = estimator._magnitude_change(TS)
+    assert np.allclose(m, 17.74167)
+
+
+def test_estimator_change_detection_confidence_level_zero() -> None:
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1, num_bootstrap=10)
+    estimator = algo.estimators[0]
+
+    S_diff = estimator._magnitude_change(TS)
+
+    with patch.object(estimator, "_magnitude_change_bootstrap") as mock_estimator:
+        mock_estimator.return_value = S_diff
+
+        assert estimator._change_detection_confidence_level(TS) == 0.0
+
+
+def test_estimator_change_detection_confidence_level_one() -> None:
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1, num_bootstrap=10)
+    estimator = algo.estimators[0]
+
+    S_diff = estimator._magnitude_change(TS)
+
+    with patch.object(estimator, "_magnitude_change_bootstrap") as mock_estimator:
+        mock_estimator.return_value = S_diff - 1e-1
+
+        assert estimator._change_detection_confidence_level(TS) == 1.0
+
+
+def test_estimator_detect_change_true() -> None:
+    level_threshold = 0.95
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, change_detection_confidence=level_threshold
+    )
+    estimator = algo.estimators[0]
+
+    with patch.object(
+        estimator, "_change_detection_confidence_level"
+    ) as mock_estimator:
+        mock_estimator.return_value = level_threshold
+
+        assert estimator._detect_change(TS)
+
+
+def test_estimator_detect_change_false() -> None:
+    level_threshold = 0.95
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, change_detection_confidence=level_threshold
+    )
+    estimator = algo.estimators[0]
+
+    with patch.object(
+        estimator, "_change_detection_confidence_level"
+    ) as mock_estimator:
+        mock_estimator.return_value = level_threshold - 1e-1
+
+        assert not estimator._detect_change(TS)
