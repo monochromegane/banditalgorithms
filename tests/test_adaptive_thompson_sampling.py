@@ -56,6 +56,31 @@ def test_estimator_update() -> None:
     assert len(estimator.distances) == 1
 
 
+def test_estimator_update_with_discarding() -> None:
+    N = 5
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(
+        1, 1, N=N, splitting_threshold=1, seed=1
+    )
+    estimator = algo.estimators[0]
+
+    for _ in range(10):
+        ctx0 = np.ones([1, 1])
+        reward0 = 1.0
+        estimator.update(reward0, ctx0)
+
+    for _ in range(15):
+        ctx1 = np.c_[np.array([0.1])]
+        reward1 = 2.0
+        estimator.update(reward1, ctx1)
+        # Detect change at i == 6, so 8 of observations and 4 of distances increase after detection.
+
+    assert len(estimator.rewards) == N + 8
+    assert np.all(np.array(estimator.rewards) == reward1)
+    assert len(estimator.xs) == N + 8
+    assert np.all(np.array(estimator.xs) == ctx1)
+    assert len(estimator.distances) == 4
+
+
 def test_estimator_params_from_with_zero() -> None:
     algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
     estimator = algo.estimators[0]

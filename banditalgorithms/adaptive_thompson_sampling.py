@@ -98,7 +98,9 @@ class AdaptiveThompsonSamplingEstimator:
         )
 
         if self._detect_change(self.distances):
-            ...
+            self.rewards = self.rewards[t - N : t]
+            self.xs = self.xs[t - N : t]
+            self.distances = []
 
     def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
         if len(self.xs) == 0:
