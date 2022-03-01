@@ -79,14 +79,15 @@ class DynamicLinUCBSlave:
         self.counts = [0 for _ in range(num_arms)]
 
     def select(self, x: np.ndarray) -> int:
-        return cast(
-            int, np.argmax([self._ucb_score(i, x) for i in range(self.num_arms)])
-        )
+        return cast(int, np.argmax([score for score in self._ucb_scores(x)]))
 
     def update(self, idx_arm: int, reward: float, x: np.ndarray) -> None:
         self.bs[idx_arm] += reward * x
         self.invAs[idx_arm].update(x)
         self.counts[idx_arm] += 1
+
+    def _ucb_scores(self, x: np.ndarray) -> List[float]:
+        return [self._ucb_score(i, x) for i in range(self.num_arms)]
 
     def _ucb_score(self, idx_arm: int, x: np.ndarray) -> float:
         theta_hat = self.invAs[idx_arm].data.dot(self.bs[idx_arm])
@@ -99,6 +100,7 @@ class DynamicLinUCBSlave:
         size = self.counts[idx_arm]
         alpha = self.sigma2 * math.sqrt(
             d * math.log(1.0 + (size / self.lambda_ * self.delta1))
+            + math.sqrt(self.lambda_)
         )
 
         return alpha * math.sqrt(x.T.dot(self.invAs[idx_arm].data).dot(x))
