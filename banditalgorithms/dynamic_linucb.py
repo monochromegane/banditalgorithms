@@ -81,7 +81,7 @@ class DynamicLinUCBSlave:
         d = self.dim_context
         size = self.counts[idx_arm]
         alpha = self.sigma2 * math.sqrt(
-            d * math.log(1.0 + (size / self.lambda_ * self.delta1))
+            d * math.log(1.0 + (size / (self.lambda_ * self.delta1)))
             + math.sqrt(self.lambda_)
         )
 

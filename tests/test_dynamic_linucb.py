@@ -187,7 +187,7 @@ def test_dynamic_linucb_slave_B() -> None:
             algo.update(idx_arm, reward, ctx)
 
     expected_B = (
-        0.5664163145181117  # alpha(= 1.791165657755531) * ||x||_A^{-1}(= 0.31622777)
+        0.5829146826764935  # alpha(= 1.843338078812015) * ||x||_A^{-1}(= 0.31622777)
     )
     assert np.isclose(slave.B(idx_arm, x), expected_B)
 
