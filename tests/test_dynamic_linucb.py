@@ -174,7 +174,7 @@ def test_dynamic_linucb_slave_B_with_zero_observation() -> None:
 def test_dynamic_linucb_slave_B() -> None:
     num_arms = 1
     dim_context = 1
-    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context, sigma2=1.0, delta1=1.0)
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context, sigma2=1.0, delta1=0.9)
     slave = algo.models[0]
     rewards = [10.0 for _ in range(9)]
     idx_arm = 0
@@ -187,7 +187,7 @@ def test_dynamic_linucb_slave_B() -> None:
             algo.update(idx_arm, reward, ctx)
 
     expected_B = (
-        0.5746812313093125  # alpha(= 1.8173015965970112) * ||x||_A^{-1}(= 0.31622777)
+        0.5664163145181117  # alpha(= 1.791165657755531) * ||x||_A^{-1}(= 0.31622777)
     )
     assert np.isclose(slave.B(idx_arm, x), expected_B)
 
