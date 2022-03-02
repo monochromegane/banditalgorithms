@@ -127,10 +127,10 @@ class DynamicLinUCB:
             m = self.models[idx_model]
             m.update(idx_arm, reward, x)
 
-            if m.e_hat < self.delta1_tilde + m.d:
+            if self._keep_model(m):
                 create_new_flag = False
                 models.append(m)
-            elif m.e_hat >= self.delta1 + m.d:
+            elif self._discard_model(m):
                 # Discard slave model m
                 pass
 
@@ -138,6 +138,12 @@ class DynamicLinUCB:
             models.append(self._create_new_slave_model())
 
         self.models = models
+
+    def _keep_model(self, m: DynamicLinUCBSlave) -> bool:
+        return m.e_hat < self.delta1_tilde + m.d
+
+    def _discard_model(self, m: DynamicLinUCBSlave) -> bool:
+        return m.e_hat >= self.delta1 + m.d
 
     def _create_new_slave_model(self) -> DynamicLinUCBSlave:
         return DynamicLinUCBSlave(

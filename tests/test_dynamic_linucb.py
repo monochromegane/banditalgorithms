@@ -12,6 +12,69 @@ def test_dynamic_linucb_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_dynamic_linucb_update_keep_model() -> None:
+    num_arms = 1
+    dim_context = 1
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+
+    rewards = [10.0 for _ in range(5)]
+    idx_arm = 0
+    ctx = [1.0]
+
+    with patch.object(algo, "_keep_model") as mock_keep:
+        mock_keep.return_value = True
+        with patch.object(algo, "_discard_model") as mock_discard:
+            mock_discard.return_value = True
+            with patch.object(algo, "_create_new_slave_model") as mock_creator:
+                for reward in rewards:
+                    algo.update(idx_arm, reward, ctx)
+                mock_creator.assert_not_called()
+
+    assert len(algo.models) == 1
+
+
+def test_dynamic_linucb_update_discard_model() -> None:
+    num_arms = 1
+    dim_context = 1
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+
+    rewards = [10.0 for _ in range(5)]
+    idx_arm = 0
+    ctx = [1.0]
+
+    with patch.object(algo, "_keep_model") as mock_keep:
+        mock_keep.return_value = False
+        with patch.object(algo, "_discard_model") as mock_discard:
+            mock_discard.return_value = True
+            with patch.object(algo, "_create_new_slave_model") as mock_creator:
+                for reward in rewards:
+                    algo.update(idx_arm, reward, ctx)
+                mock_creator.assert_called()
+
+    assert len(algo.models) == 1
+
+
+def test_dynamic_linucb_update_create_model() -> None:
+    num_arms = 1
+    dim_context = 1
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+
+    rewards = [10.0 for _ in range(5)]
+    idx_arm = 0
+    ctx = [1.0]
+
+    with patch.object(algo, "_keep_model") as mock_keep:
+        mock_keep.return_value = False
+        with patch.object(algo, "_discard_model") as mock_discard:
+            mock_discard.return_value = False
+            with patch.object(algo, "_create_new_slave_model") as mock_creator:
+                for reward in rewards:
+                    algo.update(idx_arm, reward, ctx)
+                mock_creator.assert_called()
+
+    assert len(algo.models) == 1
+
+
 def test_dynamic_linucb_slave_ucb_scores() -> None:
     num_arms = 3
     dim_context = 1
