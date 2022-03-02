@@ -39,6 +39,7 @@ class DynamicLinUCB:
                 delta2=self.delta2,
                 delta1_tilde=self.delta1_tilde,
                 sigma2=self.sigma2,
+                tau=self.tau,
             )
         ]
 
@@ -77,7 +78,9 @@ class DynamicLinUCBSlave:
         self.sigma2 = sigma2
         self.sigma = math.sqrt(sigma2)
         self.tau = tau
-        self.epsilon = math.sqrt(2.0) * self.sigma * special.erfinv(1.0 - self.delta1)
+        self.epsilon = cast(
+            float, math.sqrt(2.0) * self.sigma * special.erfinv(1.0 - self.delta1)
+        )
 
         self.invAs = [
             mat.InverseMatrix(dim_context, lambda_=lambda_) for _ in range(num_arms)
@@ -92,19 +95,14 @@ class DynamicLinUCBSlave:
         return cast(int, np.argmax([score for score in self._ucb_scores(x)]))
 
     def update(self, idx_arm: int, reward: float, x: np.ndarray) -> None:
-        e = 0.0
-        if (
-            abs(self._reward_hat(idx_arm, x) - reward)
-            > self.B(idx_arm, x) + self.epsilon
-        ):
-            e = 1.0
+        e = 1.0 if self._exceed_confidence_bound(idx_arm, reward, x) else 0.0
         self.es.append(e)
 
         self.bs[idx_arm] += reward * x
         self.invAs[idx_arm].update(x)
         self.counts[idx_arm] += 1
 
-        recently_es = self.es[max(0, len(self.es) - self.tau) :]
+        recently_es = self._recently_es()
         self.e_hat = sum(recently_es) / len(recently_es)
         self.d = math.sqrt(math.log(1.0 / self.delta2) / (2 * len(recently_es)))
 
@@ -117,6 +115,16 @@ class DynamicLinUCBSlave:
     def _reward_hat(self, idx_arm: int, x: np.ndarray) -> float:
         theta_hat = self.invAs[idx_arm].data.dot(self.bs[idx_arm])
         return cast(float, x.T.dot(theta_hat)[0][0])
+
+    def _exceed_confidence_bound(
+        self, idx_arm: int, reward: float, x: np.ndarray
+    ) -> bool:
+        return abs(self._reward_hat(idx_arm, x) - reward) > (
+            self.B(idx_arm, x) + self.epsilon
+        )
+
+    def _recently_es(self) -> List[float]:
+        return self.es[max(0, len(self.es) - self.tau) :]
 
     def B(self, idx_arm: int, x: np.ndarray) -> float:
         d = self.dim_context
