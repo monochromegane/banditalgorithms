@@ -48,9 +48,10 @@ class DynamicLinUCBSlave:
         e = 1.0 if self._exceed_confidence_bound(idx_arm, reward, x) else 0.0
         self.es.append(e)
 
-        self.bs[idx_arm] += reward * x
-        self.invAs[idx_arm].update(x)
-        self.counts[idx_arm] += 1
+        if e == 0.0:
+            self.bs[idx_arm] += reward * x
+            self.invAs[idx_arm].update(x)
+            self.counts[idx_arm] += 1
 
         recently_es = self._recently_es()
         self.e_hat = sum(recently_es) / len(recently_es)
