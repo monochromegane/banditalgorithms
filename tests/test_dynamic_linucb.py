@@ -72,7 +72,7 @@ def test_dynamic_linucb_update_create_model() -> None:
                     algo.update(idx_arm, reward, ctx)
                 mock_creator.assert_called()
 
-    assert len(algo.models) == 1
+    assert len(algo.models) == 1 + len(rewards)
 
 
 def test_dynamic_linucb_slave_ucb_scores() -> None:

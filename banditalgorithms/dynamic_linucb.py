@@ -133,6 +133,8 @@ class DynamicLinUCB:
             elif self._discard_model(m):
                 # Discard slave model m
                 pass
+            else:
+                models.append(m)
 
         if create_new_flag or len(models) == 0:
             models.append(self._create_new_slave_model())
