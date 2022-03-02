@@ -97,23 +97,26 @@ def test_dynamic_linucb_minimum_error_model() -> None:
 
     assert algo._minimum_error_model() == 2
 
+
 def test_dynamic_linucb_slave_ucb_scores() -> None:
     num_arms = 3
     dim_context = 1
     algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+    slave = algo.models[0]
     rewards = [10.0, 20.0, 30.0]
     idx_arm = 0
     ctx = [1.0]
     x = np.c_[np.array(ctx)]
 
     mat = np.eye(1)
-    for reward in rewards:
-        algo.update(idx_arm, reward, ctx)
-        mat += x.dot(x.T)
+    with patch.object(slave, "_exceed_confidence_bound") as mock_exceed:
+        mock_exceed.return_value = False
+        for reward in rewards:
+            algo.update(idx_arm, reward, ctx)
+            mat += x.dot(x.T)
 
     count = len(rewards) + 1  # +1 is due to np.eye when its initialize
     actual_reward = sum(rewards) / count
-    slave = algo.models[0]
 
     with patch.object(slave, "B") as mock_slave:
         mock_slave.return_value = 0.0
@@ -121,6 +124,26 @@ def test_dynamic_linucb_slave_ucb_scores() -> None:
         ucb_scores = slave._ucb_scores(x)
         assert len(ucb_scores) == num_arms
         assert ucb_scores[idx_arm] == actual_reward  # + actual_term_ucb
+
+
+def test_dynamic_linucb_slave_update_when_confidence_bound_exceed() -> None:
+    num_arms = 3
+    dim_context = 1
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+    slave = algo.models[0]
+    rewards = [10.0, 20.0, 30.0]
+    idx_arm = 0
+    ctx = [1.0]
+    x = np.c_[np.array(ctx)]
+
+    with patch.object(slave, "_exceed_confidence_bound") as mock_exceed:
+        mock_exceed.return_value = True
+        for reward in rewards:
+            algo.update(idx_arm, reward, ctx)
+
+    np.allclose(slave.bs[idx_arm], np.zeros([dim_context, 1]))
+    np.allclose(slave.invAs[idx_arm].data, np.linalg.inv(np.eye(dim_context)))
+    assert slave.counts[idx_arm] == 0
 
 
 def test_dynamic_linucb_slave_B_with_zero_observation() -> None:
