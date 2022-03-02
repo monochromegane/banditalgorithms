@@ -42,7 +42,7 @@ class DynamicLinUCBSlave:
         self.d = 0.0
 
     def select(self, x: np.ndarray) -> int:
-        return cast(int, np.argmax([score for score in self._ucb_scores(x)]))
+        return cast(int, np.argmax(self._ucb_scores(x)))
 
     def update(self, idx_arm: int, reward: float, x: np.ndarray) -> None:
         e = 1.0 if self._exceed_confidence_bound(idx_arm, reward, x) else 0.0

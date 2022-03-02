@@ -12,6 +12,20 @@ def test_dynamic_linucb_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_dynamic_linucb_select() -> None:
+    num_arms = 2
+    dim_context = 1
+    ctx = [1.0]
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context, sigma2=1.0, tau=100)
+    idx_arm = 0
+
+    for _ in range(100):
+        algo.update(idx_arm, 0.1, ctx)
+        algo.update(idx_arm + 1, 1.0, ctx)
+
+    assert algo.select(ctx) == idx_arm + 1
+
+
 def test_dynamic_linucb_update_keep_model() -> None:
     num_arms = 1
     dim_context = 1
@@ -20,7 +34,6 @@ def test_dynamic_linucb_update_keep_model() -> None:
     rewards = [10.0 for _ in range(5)]
     idx_arm = 0
     ctx = [1.0]
-
     with patch.object(algo, "_keep_model") as mock_keep:
         mock_keep.return_value = True
         with patch.object(algo, "_discard_model") as mock_discard:
@@ -134,7 +147,6 @@ def test_dynamic_linucb_slave_update_when_confidence_bound_exceed() -> None:
     rewards = [10.0, 20.0, 30.0]
     idx_arm = 0
     ctx = [1.0]
-    x = np.c_[np.array(ctx)]
 
     with patch.object(slave, "_exceed_confidence_bound") as mock_exceed:
         mock_exceed.return_value = True
