@@ -115,7 +115,7 @@ class DynamicLinUCB:
 
     def select(self, ctx: List[float]) -> int:
         x = np.c_[np.array(ctx)]
-        idx_model = 0
+        idx_model = self._minimum_error_model()
         return self.models[idx_model].select(x)
 
     def update(self, idx_arm: int, reward: float, ctx: List[float]) -> None:
@@ -140,6 +140,14 @@ class DynamicLinUCB:
             models.append(self._create_new_slave_model())
 
         self.models = models
+
+    def _minimum_error_model(self) -> int:
+        return cast(
+            int,
+            np.argmin(
+                [m.e_hat - math.sqrt(math.log(self.tau)) * m.d for m in self.models]
+            ),
+        )
 
     def _keep_model(self, m: DynamicLinUCBSlave) -> bool:
         return m.e_hat < self.delta1_tilde + m.d

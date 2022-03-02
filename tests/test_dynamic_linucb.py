@@ -75,6 +75,28 @@ def test_dynamic_linucb_update_create_model() -> None:
     assert len(algo.models) == 1 + len(rewards)
 
 
+def test_dynamic_linucb_minimum_error_model() -> None:
+    num_arms = 1
+    dim_context = 1
+    algo = dynamic_linucb.DynamicLinUCB(num_arms, dim_context)
+
+    rewards = [10.0 for _ in range(3)]
+    idx_arm = 0
+    ctx = [1.0]
+
+    with patch.object(algo, "_keep_model") as mock_keep:
+        mock_keep.return_value = False
+        with patch.object(algo, "_discard_model") as mock_discard:
+            mock_discard.return_value = False
+            for reward in rewards:
+                algo.update(idx_arm, reward, ctx)
+
+    algo.models[0].e_hat = 1.0
+    algo.models[1].e_hat = 0.5
+    algo.models[2].e_hat = 0.1
+
+    assert algo._minimum_error_model() == 2
+
 def test_dynamic_linucb_slave_ucb_scores() -> None:
     num_arms = 3
     dim_context = 1
