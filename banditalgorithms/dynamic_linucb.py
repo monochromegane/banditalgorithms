@@ -26,22 +26,12 @@ class DynamicLinUCB:
         self.lambda_ = lambda_
         self.delta1 = delta1
         self.delta2 = delta2
-        self.delta1_tilde = delta1_tilde
+        if delta1_tilde is None:
+            self.delta1_tilde = delta1
         self.sigma2 = sigma2
         self.tau = tau
 
-        self.models = [
-            DynamicLinUCBSlave(
-                self.num_arms,
-                self.dim_context,
-                lambda_=self.lambda_,
-                delta1=self.delta1,
-                delta2=self.delta2,
-                delta1_tilde=self.delta1_tilde,
-                sigma2=self.sigma2,
-                tau=self.tau,
-            )
-        ]
+        self.models = [self._create_new_slave_model()]
 
     def select(self, ctx: List[float]) -> int:
         x = np.c_[np.array(ctx)]
@@ -50,8 +40,36 @@ class DynamicLinUCB:
 
     def update(self, idx_arm: int, reward: float, ctx: List[float]) -> None:
         x = np.c_[np.array(ctx)]
+
+        models = []
+        create_new_flag = True
         for idx_model in range(len(self.models)):
-            self.models[idx_model].update(idx_arm, reward, x)
+            m = self.models[idx_model]
+            m.update(idx_arm, reward, x)
+
+            if m.e_hat < self.delta1_tilde + m.d:
+                create_new_flag = False
+                models.append(m)
+            elif m.e_hat >= self.delta1 + m.d:
+                # Discard slave model m
+                pass
+
+        if create_new_flag or len(models) == 0:
+            models.append(self._create_new_slave_model())
+
+        self.models = models
+
+    def _create_new_slave_model(self) -> DynamicLinUCBSlave:
+        return DynamicLinUCBSlave(
+            self.num_arms,
+            self.dim_context,
+            lambda_=self.lambda_,
+            delta1=self.delta1,
+            delta2=self.delta2,
+            delta1_tilde=self.delta1_tilde,
+            sigma2=self.sigma2,
+            tau=self.tau,
+        )
 
 
 class DynamicLinUCBSlave:
@@ -63,7 +81,6 @@ class DynamicLinUCBSlave:
         lambda_: float = 1.0,
         delta1: float = 0.1,
         delta2: float = 0.1,
-        delta1_tilde: Optional[float] = None,
         sigma2: float = 1e-2,
         tau: int = 10,
     ) -> None:
@@ -73,8 +90,6 @@ class DynamicLinUCBSlave:
         self.lambda_ = lambda_
         self.delta1 = delta1
         self.delta2 = delta2
-        if delta1_tilde is None:
-            self.delta1_tilde = delta1
         self.sigma2 = sigma2
         self.sigma = math.sqrt(sigma2)
         self.tau = tau
