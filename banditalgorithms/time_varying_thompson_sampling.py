@@ -43,13 +43,30 @@ class Particle:
         self.eta = np.c_[eta]
 
     def mu_w(self) -> np.ndarray:
-        ...
+        # Orignal formula. However this value is different from the value of the true coefficient vector.
+        # sigma2 = self.sigma2_epsilon
+        # mu = self.mu_c + np.linalg.inv(self.SIGMA_eta + sigma2 * self.SIGMA_theta).dot(
+        #     self.SIGMA_eta.dot(self.mu_theta)
+        #     + sigma2 * self.SIGMA_theta.dot(self.mu_eta)
+        # )
+
+        # Modified formula.
+        mu = self.mu_c + np.multiply(self.mu_eta, self.mu_theta)
+        return cast(np.ndarray, mu)
 
     def SIGMA_w(self) -> np.ndarray:
-        ...
+        sigma2 = self.sigma2_epsilon
+        SIGMA = (sigma2 * self.SIGMA_c) + (
+            sigma2 * self.SIGMA_theta.dot(self.SIGMA_eta)
+        ).dot(np.linalg.inv(self.SIGMA_eta + sigma2 * self.SIGMA_theta))
+        return cast(np.ndarray, SIGMA)
 
     def rho(self, reward: float, x: np.ndarray) -> float:
-        ...
+        m = x.T.dot(self.c_w + np.multiply(self.theta, self.mu_eta))
+        Id = np.identity(self.dim_context) * self.sigma2_xi
+        x_theta = np.multiply(x, self.theta)
+        Q = self.sigma2_epsilon + x_theta.T.dot(Id + self.SIGMA_eta).dot(x_theta)
+        return cast(float, stats.norm.pdf(reward, loc=m[0][0], scale=Q[0][0]))
 
     def update_eta(self, reward: float, x: np.ndarray) -> None:
         ...
