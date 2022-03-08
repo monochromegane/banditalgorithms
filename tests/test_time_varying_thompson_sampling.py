@@ -12,6 +12,32 @@ def test_time_varying_thompson_sampling_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_time_varying_thompson_sampling_particles_update() -> None:
+    num_particles = 4
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        1, 1, num_particles=num_particles
+    )
+
+    particles = algo.filters[0]
+
+    with patch.object(particles.P[0], "rho", return_value=1.0):
+        with patch.object(particles.P[1], "rho", return_value=2.0):
+            with patch.object(particles.P[2], "rho", return_value=3.0):
+                with patch.object(particles.P[3], "rho", return_value=4.0):
+                    with patch.object(particles, "_resampling") as mock_resampling:
+                        mock_resampling.return_value = [0, 2, 3, 3]
+
+                        reward = 0.0
+                        x = np.ones([1, 1])
+                        particles.update(reward, x)
+                        mock_resampling.assert_called_with([0.1, 0.2, 0.3, 0.4])
+
+                        assert particles.P[0].rho(reward, x) == 1.0  # from P[0] at t-1
+                        assert particles.P[1].rho(reward, x) == 3.0  # from P[2] at t-1
+                        assert particles.P[2].rho(reward, x) == 4.0  # from P[3] at t-1
+                        assert particles.P[3].rho(reward, x) == 4.0  # from P[3] at t-1
+
+
 def test_time_varying_thompson_sampling_particles_mu_wk() -> None:
     algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
         1, 2, num_particles=2
