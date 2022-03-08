@@ -63,16 +63,64 @@ class Particle:
 
     def rho(self, reward: float, x: np.ndarray) -> float:
         m = x.T.dot(self.c_w + np.multiply(self.theta, self.mu_eta))
-        Id = np.identity(self.dim_context) * self.sigma2_xi
-        x_theta = np.multiply(x, self.theta)
-        Q = self.sigma2_epsilon + x_theta.T.dot(Id + self.SIGMA_eta).dot(x_theta)
+        Q = self._Q(x)
         return cast(float, stats.norm.pdf(reward, loc=m[0][0], scale=Q[0][0]))
 
     def update_eta(self, reward: float, x: np.ndarray) -> None:
-        ...
+        Id = np.identity(self.dim_context) * self.sigma2_xi
+        Q = self._Q(x)
+        G = (Id + self.SIGMA_eta).dot(np.multiply(self.theta, x)).dot(np.linalg.inv(Q))
+
+        self.mu_eta += G.dot(
+            reward - x.T.dot(self.c_w + np.multiply(self.theta, self.eta))
+        )
+        self.SIGMA_eta += Id - G.dot(Q).dot(G.T)
+
+        eta = self.random.multivariate_normal(self.mu_eta.reshape(-1), self.SIGMA_eta)
+        self.eta = np.c_[eta]
 
     def update_params(self, reward: float, x: np.ndarray) -> None:
-        ...
+        dim = self.dim_context
+        z_t = np.hstack([x.T, np.multiply(x, self.eta).T]).T
+        SIGMA = np.block(
+            [
+                [self.SIGMA_c, np.zeros([dim, dim])],
+                [np.zeros([dim, dim]), self.SIGMA_theta],
+            ]
+        )
+        mu = np.hstack([self.mu_c.T, self.mu_theta.T]).T
+
+        SIGMA_p = np.linalg.inv(np.linalg.inv(SIGMA) + z_t.dot(z_t.T))
+        mu_p = SIGMA_p.dot((z_t * reward) + np.linalg.inv(SIGMA).dot(mu))
+
+        alpha_p = self.alpha + 0.5
+        beta_p = (
+            self.beta
+            + 0.5
+            * (
+                mu.T.dot(np.linalg.inv(SIGMA)).dot(mu)
+                + (reward * reward)
+                - mu_p.T.dot(np.linalg.inv(SIGMA_p)).dot(mu_p)
+            )[0][0]
+        )
+
+        sigma2 = stats.invgamma.rvs(alpha_p, scale=beta_p)
+        v = self.random.multivariate_normal(mu_p.reshape(-1), sigma2 * SIGMA_p)
+
+        self.mu_c, self.mu_theta = [np.c_[mu_] for mu_ in np.split(mu_p, 2)]
+        self.SIGMA_c, _, _, self.SIGMA_theta = sum(
+            [np.split(s, 2, axis=1) for s in np.split(SIGMA_p, 2, axis=0)], []
+        )
+        self.alpha = alpha_p
+        self.beta = beta_p
+        self.sigma2_epsilon = sigma2
+        self.c_w, self.theta = [np.c_[v_] for v_ in np.split(v, 2)]
+
+    def _Q(self, x: np.ndarray) -> np.ndarray:
+        Id = np.identity(self.dim_context) * self.sigma2_xi
+        x_theta = np.multiply(x, self.theta)
+        Q = self.sigma2_epsilon + x_theta.T.dot(Id + self.SIGMA_eta).dot(x_theta)
+        return cast(np.ndarray, Q)
 
 
 class Particles:
