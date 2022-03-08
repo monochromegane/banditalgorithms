@@ -64,10 +64,13 @@ class Particles:
         )
         return cast(np.ndarray, SIGMA)
 
-    def _resampling(self, weights: List[float]) -> List[int]:
+    def _resampling(
+        self, weights: List[float], u0: Optional[float] = None
+    ) -> List[int]:
         n_particles = len(weights)
         idx = np.array(list(range(n_particles)))
-        u0 = self.random.uniform(0, 1.0 / n_particles)
+        if u0 is None:
+            u0 = self.random.uniform(0, 1.0 / n_particles)
         u = [1.0 / n_particles * i + u0 for i in range(n_particles)]
         w_cumsum = np.cumsum(weights)
         return [self._f_inv(w_cumsum, idx, val) for val in u]
