@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import numpy as np
 from banditalgorithms import bandit_types, time_varying_thompson_sampling
 
@@ -8,6 +10,33 @@ def test_time_varying_thompson_sampling_compatible_with_bandit_type() -> None:
 
     _ = new_bandit()
     assert True
+
+
+def test_time_varying_thompson_sampling_particles_mu_wk() -> None:
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        1, 2, num_particles=2
+    )
+    particles = algo.filters[0]
+    with patch.object(particles.P[0], "mu_w", return_value=np.c_[np.array([1.0, 2.0])]):
+        with patch.object(
+            particles.P[1], "mu_w", return_value=np.c_[np.array([2.0, 4.0])]
+        ):
+            assert np.allclose(particles._mu_wk(), np.c_[np.array([1.5, 3.0])])
+
+
+def test_time_varying_thompson_sampling_particles_SIGMA_wk() -> None:
+    num_particles = 2
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        1, 2, num_particles=num_particles
+    )
+    particles = algo.filters[0]
+    SIGMA_P0 = np.array([[1.0, 2.0], [3.0, 4.0]])
+    SIGMA_P1 = np.array([[3.0, 4.0], [5.0, 6.0]])
+    expectSIGMA = sum([SIGMA_P0, SIGMA_P1]) / num_particles ** 2
+
+    with patch.object(particles.P[0], "SIGMA_w", return_value=SIGMA_P0):
+        with patch.object(particles.P[1], "SIGMA_w", return_value=SIGMA_P1):
+            assert np.allclose(particles._SIGMA_wk(), expectSIGMA)
 
 
 def test_time_varying_thompson_sampling_particles_resampling() -> None:
