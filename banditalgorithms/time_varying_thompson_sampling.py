@@ -2,14 +2,45 @@ import copy
 from typing import List, Optional, cast
 
 import numpy as np
+from scipy import stats
 
 
 class Particle:
-    def __init__(self, dim_context: int, rs: np.random.RandomState) -> None:
+    def __init__(
+        self, dim_context: int, sigma2_xi: float, rs: np.random.RandomState
+    ) -> None:
         self.dim_context = dim_context
         self.random = rs
 
-        self.sigma_epsilon = 1.0
+        # sigma
+        self.alpha = 1.0
+        self.beta = 1.0
+        sigma2 = stats.invgamma.rvs(self.alpha, scale=self.beta)
+
+        # c_w
+        self.mu_c = np.c_[np.zeros(dim_context)]
+        self.SIGMA_c = np.identity(dim_context)
+        c_w = self.random.multivariate_normal(
+            self.mu_c.reshape(-1), sigma2 * self.SIGMA_c
+        )
+        self.c_w = np.c_[c_w]
+
+        # theta
+        self.mu_theta = np.c_[np.zeros(dim_context)]
+        self.SIGMA_theta = np.identity(dim_context)
+        theta = self.random.multivariate_normal(
+            self.mu_theta.reshape(-1), sigma2 * self.SIGMA_theta
+        )
+        self.theta = np.c_[theta]
+
+        # eta (Kalman filter)
+        self.sigma2_epsilon = sigma2  # Variance of observation error
+        self.sigma2_xi = sigma2_xi  # Variance of state error
+
+        self.mu_eta = np.c_[np.zeros(dim_context)]
+        self.SIGMA_eta = np.identity(dim_context) * self.sigma2_xi
+        eta = self.random.multivariate_normal(self.mu_eta.reshape(-1), self.SIGMA_eta)
+        self.eta = np.c_[eta]
 
     def mu_w(self) -> np.ndarray:
         ...
@@ -29,12 +60,16 @@ class Particle:
 
 class Particles:
     def __init__(
-        self, dim_context: int, num_particles: int, rs: np.random.RandomState
+        self,
+        dim_context: int,
+        num_particles: int,
+        sigma2_xi: float,
+        rs: np.random.RandomState,
     ) -> None:
         self.dim_context = dim_context
         self.random = rs
         self.num_particles = num_particles
-        self.P = [Particle(dim_context, rs) for p in range(num_particles)]
+        self.P = [Particle(dim_context, sigma2_xi, rs) for p in range(num_particles)]
 
     def eval(self, x: np.ndarray) -> float:
         mu = self._mu_wk().reshape(-1)
@@ -59,7 +94,7 @@ class Particles:
         return cast(np.ndarray, mu)
 
     def _SIGMA_wk(self) -> np.ndarray:
-        SIGMA = sum([p.sigma_epsilon * p.SIGMA_w() for p in self.P]) / (
+        SIGMA = sum([p.sigma2_epsilon * p.SIGMA_w() for p in self.P]) / (
             self.num_particles ** 2
         )
         return cast(np.ndarray, SIGMA)
@@ -89,6 +124,7 @@ class TimeVaryingThompsonSampling:
         dim_context: int,
         *,
         num_particles: int = 1,
+        sigma2_xi: float = 1.0,
         seed: Optional[int] = None,
     ) -> None:
         self.random = np.random.RandomState(seed)
@@ -96,7 +132,8 @@ class TimeVaryingThompsonSampling:
         self.num_arms = num_arms
         self.dim_context = dim_context
         self.filters = [
-            Particles(dim_context, num_particles, self.random) for _ in range(num_arms)
+            Particles(dim_context, num_particles, sigma2_xi, self.random)
+            for _ in range(num_arms)
         ]
 
     def select(self, ctx: List[float]) -> int:

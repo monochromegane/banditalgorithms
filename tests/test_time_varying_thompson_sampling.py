@@ -62,6 +62,9 @@ def test_time_varying_thompson_sampling_particles_SIGMA_wk() -> None:
 
     with patch.object(particles.P[0], "SIGMA_w", return_value=SIGMA_P0):
         with patch.object(particles.P[1], "SIGMA_w", return_value=SIGMA_P1):
+            particles.P[0].sigma2_epsilon = 1.0
+            particles.P[1].sigma2_epsilon = 1.0
+
             assert np.allclose(particles._SIGMA_wk(), expectSIGMA)
 
 
