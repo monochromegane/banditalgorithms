@@ -12,6 +12,55 @@ def test_time_varying_thompson_sampling_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_time_varying_thompson_sampling_particle_update_eta() -> None:
+    num_particles = 1
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        1, 1, num_particles=num_particles, sigma2_xi=1.0, seed=1
+    )
+
+    particle = algo.filters[0].P[0]
+
+    # Fix scale value
+    theta = 1.0
+    particle.theta = theta
+    particle.mu_theta = np.array([[theta]])
+
+    reward = 10.0
+    ctx = np.array([1.0])
+    x = np.c_[ctx]
+
+    for _ in range(100):
+        particle.update_eta(reward, x)
+
+    assert np.allclose(particle.mu_eta, np.array([[9.99167151]]))
+    assert np.allclose(particle.mu_w(), np.array([[9.99167151]]))  # close reward
+
+
+def test_time_varying_thompson_sampling_particle_update_params() -> None:
+    num_particles = 1
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        1, 1, num_particles=num_particles, seed=1
+    )
+
+    particle = algo.filters[0].P[0]
+
+    # Fix drift value
+    eta = 1.0
+    particle.eta = eta
+    particle.mu_eta = np.array([[eta]])
+
+    reward = 10.0
+    ctx = np.array([1.0])
+    x = np.c_[ctx]
+
+    for _ in range(100):
+        particle.update_params(reward, x)
+
+    assert np.allclose(particle.mu_c, np.array([[4.99978325]]))
+    assert np.allclose(particle.mu_theta, np.array([[4.99978325]]))
+    assert np.allclose(particle.mu_w(), np.array([[9.99956649]]))  # close reward
+
+
 def test_time_varying_thompson_sampling_particles_update() -> None:
     num_particles = 4
     algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
