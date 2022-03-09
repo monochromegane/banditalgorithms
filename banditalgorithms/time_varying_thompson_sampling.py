@@ -144,7 +144,7 @@ class Particles:
         mu = self._mu_wk().reshape(-1)
         SIGMA = self._SIGMA_wk()
         wk = self.random.multivariate_normal(mu, SIGMA)
-        return cast(float, x.T.dot(wk)[0][0])
+        return cast(float, x.T.dot(wk)[0])
 
     def update(self, reward: float, x: np.ndarray) -> None:
         rhos = [p.rho(reward, x) for p in self.P]

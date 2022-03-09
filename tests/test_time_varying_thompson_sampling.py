@@ -12,6 +12,22 @@ def test_time_varying_thompson_sampling_compatible_with_bandit_type() -> None:
     assert True
 
 
+def test_time_varying_thompson_sampling_select() -> None:
+    num_arms = 2
+    dim_context = 1
+    ctx = [1.0]
+    algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
+        num_arms, dim_context, num_particles=5, sigma2_xi=1.0, seed=1
+    )
+    idx_arm = 0
+
+    for _ in range(100):
+        algo.update(idx_arm, 0.1, ctx)
+        algo.update(idx_arm + 1, 1.0, ctx)
+
+    assert algo.select(ctx) == idx_arm + 1
+
+
 def test_time_varying_thompson_sampling_particle_update_eta() -> None:
     num_particles = 1
     algo = time_varying_thompson_sampling.TimeVaryingThompsonSampling(
@@ -34,7 +50,6 @@ def test_time_varying_thompson_sampling_particle_update_eta() -> None:
 
     assert np.allclose(particle.mu_eta, np.array([[9.99167151]]))
     assert np.allclose(particle.mu_w(), np.array([[9.99167151]]))  # close reward
-
 
 def test_time_varying_thompson_sampling_particle_update_params() -> None:
     num_particles = 1
