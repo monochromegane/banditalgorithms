@@ -15,7 +15,9 @@ class Particle:
         # sigma
         self.alpha = 1.0
         self.beta = 1.0
-        sigma2 = stats.invgamma.rvs(self.alpha, scale=self.beta)
+        sigma2 = stats.invgamma.rvs(
+            self.alpha, scale=self.beta, random_state=self.random
+        )
 
         # c_w
         self.mu_c = np.c_[np.zeros(dim_context)]
@@ -104,7 +106,7 @@ class Particle:
             )[0][0]
         )
 
-        sigma2 = stats.invgamma.rvs(alpha_p, scale=beta_p)
+        sigma2 = stats.invgamma.rvs(alpha_p, scale=beta_p, random_state=self.random)
         v = self.random.multivariate_normal(mu_p.reshape(-1), sigma2 * SIGMA_p)
 
         self.mu_c, self.mu_theta = [np.c_[mu_] for mu_ in np.split(mu_p, 2)]
@@ -134,7 +136,9 @@ class Particles:
         self.dim_context = dim_context
         self.random = rs
         self.num_particles = num_particles
-        self.P = [Particle(dim_context, sigma2_xi, rs) for p in range(num_particles)]
+        self.P = [
+            Particle(dim_context, sigma2_xi, self.random) for p in range(num_particles)
+        ]
 
     def eval(self, x: np.ndarray) -> float:
         mu = self._mu_wk().reshape(-1)
