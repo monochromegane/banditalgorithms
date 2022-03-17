@@ -4,7 +4,6 @@ from unittest.mock import patch
 import numpy as np
 from banditalgorithms import adaptive_thompson_sampling, bandit_types
 
-
 def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
     def new_bandit() -> bandit_types.ContextualBanditType:
         return adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
@@ -120,7 +119,7 @@ def test_estimator_params_from_with_zero() -> None:
 
 
 def test_estimator_params_from() -> None:
-    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
+    algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1, N=5)
     estimator = algo.estimators[0]
 
     A0 = np.eye(1)
@@ -130,7 +129,7 @@ def test_estimator_params_from() -> None:
         reward = 1.0
         estimator.update(reward, ctx)
         A0 += ctx.dot(ctx.T)
-        b0 += reward
+        b0 += ctx * reward
 
     mu_theta, SIGMA_theta = estimator._params_from(0, 5)
     assert np.allclose(np.linalg.inv(A0).dot(b0), mu_theta)
@@ -143,7 +142,7 @@ def test_estimator_params_from() -> None:
         reward = 2.0
         estimator.update(reward, ctx)
         A1 += ctx.dot(ctx.T)
-        b1 += reward
+        b1 += ctx * reward
 
     mu_theta, SIGMA_theta = estimator._params_from(5, 10)
     assert np.allclose(np.linalg.inv(A1).dot(b1), mu_theta)
