@@ -59,11 +59,9 @@ class AdaptiveThompsonSamplingEstimator:
         rs: np.random.RandomState,
     ) -> None:
         self.rs = rs
-        self.k = k
+        self.dim_context = k
         self.sigma_theta = sigma_theta
         self.sigma_r = sigma_r
-        self.SIGMA_theta = np.eye(k) * sigma_theta
-        self.mu_theta = np.zeros([k, 1])
         self.N = N
         self.splitting_threshold = splitting_threshold
         self.num_bootstrap = num_bootstrap
@@ -73,6 +71,13 @@ class AdaptiveThompsonSamplingEstimator:
         self.xs: List[np.ndarray] = []
         self.distances: List[float] = []
 
+        self.A = np.eye(self.dim_context) / self.sigma_theta
+        self.b = np.zeros([self.dim_context, 1])
+        self.recent_A = np.eye(self.dim_context) / self.sigma_theta
+        self.recent_b = np.zeros([self.dim_context, 1])
+        self.past_A = np.eye(self.dim_context) / self.sigma_theta
+        self.past_b = np.zeros([self.dim_context, 1])
+
     def estimate(self, x: np.ndarray) -> float:
         mu_theta_r, SIGMA_theta_r = self._params_from(0, len(self.xs))
 
@@ -80,8 +85,7 @@ class AdaptiveThompsonSamplingEstimator:
         return cast(float, x.reshape(-1).dot(theta))
 
     def update(self, reward: float, x: np.ndarray) -> None:
-        self.rewards.append(reward)
-        self.xs.append(x)
+        self._update(reward, x)
 
         N = self.N
         if len(self.rewards) <= self.splitting_threshold or len(self.rewards) < (2 * N):
@@ -102,26 +106,45 @@ class AdaptiveThompsonSamplingEstimator:
             self.xs = self.xs[t - N : t]
             self.distances = []
 
+            self.A = self.recent_A
+            self.b = self.recent_b
+            self.past_A = np.eye(self.dim_context) / self.sigma_theta
+            self.past_b = np.zeros([self.dim_context, 1])
+
+    def _update(self, reward: float, x: np.ndarray) -> None:
+        self.rewards.append(reward)
+        self.xs.append(x)
+
+        self.A += x.dot(x.T) / self.sigma_r
+        self.b += x * reward / self.sigma_r
+        self.recent_A += x.dot(x.T) / self.sigma_r
+        self.recent_b += x * reward / self.sigma_r
+
+        if len(self.xs) > self.N:
+            discard_reward = self.rewards[-self.N - 1]
+            discard_x = self.xs[-self.N - 1]
+            self.recent_A -= discard_x.dot(discard_x.T) / self.sigma_r
+            self.recent_b -= discard_x * discard_reward / self.sigma_r
+
+            self.past_A += discard_x.dot(discard_x.T) / self.sigma_r
+            self.past_b += discard_x * discard_reward / self.sigma_r
+
+        if len(self.xs) > self.N * 2:
+            discard_reward = self.rewards[-self.N * 2 - 1]
+            discard_x = self.xs[-self.N * 2 - 1]
+            self.past_A -= discard_x.dot(discard_x.T) / self.sigma_r
+            self.past_b -= discard_x * discard_reward / self.sigma_r
+
     def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
-        if len(self.xs) == 0:
-            return self.mu_theta, self.SIGMA_theta
-
-        xs = self.xs[start:end]
-        rewards = self.rewards[start:end]
-        r = np.c_[rewards]
-
-        F = np.concatenate(xs).T.reshape(-1, self.k)
-        SIGMA_r = np.eye(len(rewards)) * self.sigma_r
-        invSIGMA_r = np.linalg.inv(SIGMA_r)
-        invSIGMA_theta = np.linalg.inv(self.SIGMA_theta)
-        invSIGMA_theta_r = invSIGMA_theta + F.T.dot(invSIGMA_r).dot(F)
-
-        SIGMA_theta_r = np.linalg.inv(invSIGMA_theta_r)
-        mu_theta_r = SIGMA_theta_r.dot(
-            (F.T.dot(invSIGMA_r).dot(r) + invSIGMA_theta.dot(self.mu_theta))
-        )
-
-        return mu_theta_r, SIGMA_theta_r
+        if start == 0 and end == len(self.xs):
+            invA = np.linalg.inv(self.A)
+            return invA.dot(self.b), invA
+        elif end == len(self.xs):
+            invA = np.linalg.inv(self.recent_A)
+            return invA.dot(self.recent_b), invA
+        else:
+            invA = np.linalg.inv(self.past_A)
+            return invA.dot(self.past_b), invA
 
     def _mahalanobis_distance(
         self,

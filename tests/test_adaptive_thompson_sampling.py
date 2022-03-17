@@ -1,8 +1,10 @@
 import math
+from typing import List, Tuple
 from unittest.mock import patch
 
 import numpy as np
 from banditalgorithms import adaptive_thompson_sampling, bandit_types
+
 
 def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
     def new_bandit() -> bandit_types.ContextualBanditType:
@@ -10,7 +12,6 @@ def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
 
     _ = new_bandit()
     assert True
-
 
 def test_adaptive_thompson_sampling_select() -> None:
     num_arms = 2
@@ -112,10 +113,12 @@ def test_estimator_params_from_with_zero() -> None:
     algo = adaptive_thompson_sampling.AdaptiveThompsonSampling(1, 1)
     estimator = algo.estimators[0]
 
+    A = np.eye(1)
+    b = np.zeros([1, 1])
     mu_theta, SIGMA_theta = estimator._params_from(0, 0)
 
-    assert np.allclose(mu_theta, estimator.mu_theta)
-    assert np.allclose(SIGMA_theta, estimator.SIGMA_theta)
+    assert np.allclose(mu_theta, np.linalg.inv(A).dot(b))
+    assert np.allclose(SIGMA_theta, np.linalg.inv(A))
 
 
 def test_estimator_params_from() -> None:
@@ -147,6 +150,79 @@ def test_estimator_params_from() -> None:
     mu_theta, SIGMA_theta = estimator._params_from(5, 10)
     assert np.allclose(np.linalg.inv(A1).dot(b1), mu_theta)
     assert np.allclose(np.linalg.inv(A1), SIGMA_theta)
+
+
+def test_estimator_params_from_compare_to_original() -> None:
+    class Original:
+        def __init__(
+            self, dim_context: int, sigma_theta: float, sigma_r: float
+        ) -> None:
+            self.dim_context = dim_context
+            self.sigma_theta = sigma_theta
+            self.sigma_r = sigma_r
+            self.SIGMA_theta = np.eye(dim_context) * sigma_theta
+            self.mu_theta = np.zeros([dim_context, 1])
+
+            self.rewards: List[float] = []
+            self.xs: List[np.ndarray] = []
+
+        def update(self, reward: float, x: np.ndarray) -> None:
+            self.rewards.append(reward)
+            self.xs.append(x)
+
+        def _params_from(self, start: int, end: int) -> Tuple[np.ndarray, np.ndarray]:
+            xs = self.xs[start:end]
+            rewards = self.rewards[start:end]
+            r = np.c_[rewards]
+
+            F = np.concatenate(xs).T.reshape(-1, self.dim_context)
+            SIGMA_r = np.eye(len(rewards)) * self.sigma_r
+            invSIGMA_r = np.linalg.inv(SIGMA_r)
+            invSIGMA_theta = np.linalg.inv(self.SIGMA_theta)
+            invSIGMA_theta_r = invSIGMA_theta + F.T.dot(invSIGMA_r).dot(F)
+
+            SIGMA_theta_r = np.linalg.inv(invSIGMA_theta_r)
+            mu_theta_r = SIGMA_theta_r.dot(
+                (F.T.dot(invSIGMA_r).dot(r) + invSIGMA_theta.dot(self.mu_theta))
+            )
+
+            return mu_theta_r, SIGMA_theta_r
+
+    dim_context = 2
+    sigma_theta = 0.5
+    sigma_r = 0.5
+    N = 5
+
+    original = Original(dim_context, sigma_theta, sigma_r)
+    estimator = adaptive_thompson_sampling.AdaptiveThompsonSamplingEstimator(
+        dim_context, sigma_theta, sigma_r, N, 0, 1, 1.0, np.random.RandomState(0)
+    )
+
+    ctx = np.ones([dim_context, 1])
+    reward = 1.0
+    for _ in range(5):
+        original.update(reward, ctx)
+        estimator.update(reward, ctx)
+
+    mu_theta_org, SIGMA_theta_org = original._params_from(0, 5)
+    mu_theta, SIGMA_theta = estimator._params_from(0, 5)
+    assert np.allclose(mu_theta_org, mu_theta)
+    assert np.allclose(SIGMA_theta_org, SIGMA_theta)
+
+    reward = 2.0
+    for _ in range(5):
+        original.update(reward, ctx)
+        estimator.update(reward, ctx)
+
+    mu_theta_org, SIGMA_theta_org = original._params_from(5, 10)
+    mu_theta, SIGMA_theta = estimator._params_from(5, 10)
+    assert np.allclose(mu_theta_org, mu_theta)
+    assert np.allclose(SIGMA_theta_org, SIGMA_theta)
+
+    mu_theta_org, SIGMA_theta_org = original._params_from(0, 5)
+    mu_theta, SIGMA_theta = estimator._params_from(0, 5)
+    assert np.allclose(mu_theta_org, mu_theta)
+    assert np.allclose(SIGMA_theta_org, SIGMA_theta)
 
 
 def test_estimator_mahalanobis_distance() -> None:
