@@ -78,8 +78,10 @@ class AdaptiveThompsonSamplingEstimator:
         self.past_A = np.eye(self.dim_context) / self.sigma_theta
         self.past_b = np.zeros([self.dim_context, 1])
 
+        self.cache_params: Optional[Tuple[np.ndarray, np.ndarray]] = None
+
     def estimate(self, x: np.ndarray) -> float:
-        mu_theta_r, SIGMA_theta_r = self._params_from(0, len(self.xs))
+        mu_theta_r, SIGMA_theta_r = self._cache_params()
 
         theta = self.rs.multivariate_normal(mu_theta_r.reshape(-1), SIGMA_theta_r)
         return cast(float, x.reshape(-1).dot(theta))
@@ -110,6 +112,8 @@ class AdaptiveThompsonSamplingEstimator:
             self.b = self.recent_b
             self.past_A = np.eye(self.dim_context) / self.sigma_theta
             self.past_b = np.zeros([self.dim_context, 1])
+
+        self.cache_params = None
 
     def _update(self, reward: float, x: np.ndarray) -> None:
         self.rewards.append(reward)
@@ -184,3 +188,9 @@ class AdaptiveThompsonSamplingEstimator:
         S = np.cumsum(diff)
         S_diff = S.max() - S.min()
         return cast(float, S_diff)
+
+    def _cache_params(self) -> Tuple[np.ndarray, np.ndarray]:
+        if self.cache_params is None:
+            mu_theta_r, SIGMA_theta_r = self._params_from(0, len(self.xs))
+            self.cache_params = (mu_theta_r, SIGMA_theta_r)
+        return self.cache_params

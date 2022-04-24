@@ -1,4 +1,4 @@
-from typing import List, cast
+from typing import List, Optional, cast
 
 import numpy as np
 
@@ -14,6 +14,7 @@ class DecayLinUCB:
 
         self.As = [np.eye(dim_context) for _ in range(num_arms)]
         self.bs = [np.zeros([dim_context, 1]) for _ in range(num_arms)]
+        self.cache_invAs: List[Optional[np.ndarray]] = [None for _ in range(num_arms)]
 
     def select(self, ctx: List[float]) -> int:
         x = np.c_[np.array(ctx)]
@@ -27,12 +28,20 @@ class DecayLinUCB:
         self.As[idx_arm] += x.dot(x.T)
         self.bs[idx_arm] += reward * x
 
+        self.cache_invAs[idx_arm] = None
+
     def _ucb_scores(self, x: np.ndarray) -> List[float]:
         return [self._ucb_score(i, x) for i in range(self.num_arms)]
 
     def _ucb_score(self, idx_arm: int, x: np.ndarray) -> float:
-        invA = np.linalg.inv(self.As[idx_arm])
+        invA = self._cache_invA(idx_arm)
         b = self.bs[idx_arm]
         reward_hat = x.T.dot(invA.dot(b))
         term_ucb = self.alpha * np.sqrt(x.T.dot(invA).dot(x))
         return cast(float, (reward_hat + term_ucb)[0][0])
+
+    def _cache_invA(self, idx_arm: int) -> np.ndarray:
+        if self.cache_invAs[idx_arm] is None:
+            self.cache_invAs[idx_arm] = np.linalg.inv(self.As[idx_arm])
+
+        return cast(np.ndarray, self.cache_invAs[idx_arm])
