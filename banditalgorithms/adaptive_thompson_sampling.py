@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, cast
+from typing import List, Literal, Optional, Tuple, cast
 
 import numpy as np
 
@@ -16,8 +16,10 @@ class AdaptiveThompsonSampling:
         num_bootstrap: int = 10,
         change_detection_confidence: float = 0.95,
         seed: Optional[int] = None,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
-        self.random = np.random.RandomState(seed)
+        self.random = np.random.default_rng(seed)
+        self.multivariate_normal_method = multivariate_normal_method
 
         self.num_arms = num_arms
         self.dim_context = dim_context
@@ -31,6 +33,7 @@ class AdaptiveThompsonSampling:
                 num_bootstrap,
                 change_detection_confidence,
                 self.random,
+                self.multivariate_normal_method,
             )
             for _ in range(num_arms)
         ]
@@ -56,9 +59,11 @@ class AdaptiveThompsonSamplingEstimator:
         splitting_threshold: int,
         num_bootstrap: int,
         change_detection_confidence: float,
-        rs: np.random.RandomState,
+        rs: np.random.Generator,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
         self.rs = rs
+        self.multivariate_normal_method = multivariate_normal_method
         self.dim_context = k
         self.sigma_theta = sigma_theta
         self.sigma_r = sigma_r
@@ -83,7 +88,11 @@ class AdaptiveThompsonSamplingEstimator:
     def estimate(self, x: np.ndarray) -> float:
         mu_theta_r, SIGMA_theta_r = self._cache_params()
 
-        theta = self.rs.multivariate_normal(mu_theta_r.reshape(-1), SIGMA_theta_r)
+        theta = self.rs.multivariate_normal(
+            mu_theta_r.reshape(-1),
+            SIGMA_theta_r,
+            method=self.multivariate_normal_method,
+        )
         return cast(float, x.reshape(-1).dot(theta))
 
     def update(self, reward: float, x: np.ndarray) -> None:

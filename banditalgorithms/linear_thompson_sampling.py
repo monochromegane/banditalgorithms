@@ -1,4 +1,4 @@
-from typing import List, Optional, cast
+from typing import List, Literal, Optional, cast
 
 import numpy as np
 
@@ -14,8 +14,10 @@ class LinearThompsonSampling:
         sigma2: float = 1.0,
         sigma2_0: Optional[float] = None,
         seed: Optional[int] = None,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
-        self.random = np.random.RandomState(seed)
+        self.random = np.random.default_rng(seed)
+        self.multivariate_normal_method = multivariate_normal_method
 
         self.num_arms = num_arms
         self.dim_context = dim_context
@@ -47,6 +49,8 @@ class LinearThompsonSampling:
 
         mu = invA.dot(b).reshape(-1)
         SIGMA = self.sigma2 * invA
-        theta_hat = self.random.multivariate_normal(mu, SIGMA)
+        theta_hat = self.random.multivariate_normal(
+            mu, SIGMA, method=self.multivariate_normal_method
+        )
 
         return cast(float, theta_hat.dot(x))

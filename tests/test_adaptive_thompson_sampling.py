@@ -13,6 +13,7 @@ def test_adaptive_thompson_sampling_compatible_with_bandit_type() -> None:
     _ = new_bandit()
     assert True
 
+
 def test_adaptive_thompson_sampling_select() -> None:
     num_arms = 2
     dim_context = 1
@@ -195,7 +196,7 @@ def test_estimator_params_from_compare_to_original() -> None:
 
     original = Original(dim_context, sigma_theta, sigma_r)
     estimator = adaptive_thompson_sampling.AdaptiveThompsonSamplingEstimator(
-        dim_context, sigma_theta, sigma_r, N, 0, 1, 1.0, np.random.RandomState(0)
+        dim_context, sigma_theta, sigma_r, N, 0, 1, 1.0, np.random.default_rng(0)
     )
 
     ctx = np.ones([dim_context, 1])

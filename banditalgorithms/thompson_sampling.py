@@ -5,7 +5,7 @@ import numpy as np
 
 class ThompsonSampling:
     def __init__(self, num_arms: int, *, seed: Optional[int] = None) -> None:
-        self.random = np.random.RandomState(seed)
+        self.random = np.random.default_rng(seed)
 
         self.num_arms = num_arms
 

@@ -1,5 +1,5 @@
 import copy
-from typing import List, Optional, cast
+from typing import List, Literal, Optional, cast
 
 import numpy as np
 from scipy import stats
@@ -7,10 +7,15 @@ from scipy import stats
 
 class Particle:
     def __init__(
-        self, dim_context: int, sigma2_xi: float, rs: np.random.RandomState
+        self,
+        dim_context: int,
+        sigma2_xi: float,
+        rs: np.random.Generator,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
         self.dim_context = dim_context
         self.random = rs
+        self.multivariate_normal_method = multivariate_normal_method
 
         # sigma
         self.alpha = 1.0
@@ -23,7 +28,9 @@ class Particle:
         self.mu_c = np.c_[np.zeros(dim_context)]
         self.SIGMA_c = np.identity(dim_context)
         c_w = self.random.multivariate_normal(
-            self.mu_c.reshape(-1), sigma2 * self.SIGMA_c
+            self.mu_c.reshape(-1),
+            sigma2 * self.SIGMA_c,
+            method=self.multivariate_normal_method,
         )
         self.c_w = np.c_[c_w]
 
@@ -31,7 +38,9 @@ class Particle:
         self.mu_theta = np.c_[np.zeros(dim_context)]
         self.SIGMA_theta = np.identity(dim_context)
         theta = self.random.multivariate_normal(
-            self.mu_theta.reshape(-1), sigma2 * self.SIGMA_theta
+            self.mu_theta.reshape(-1),
+            sigma2 * self.SIGMA_theta,
+            method=self.multivariate_normal_method,
         )
         self.theta = np.c_[theta]
 
@@ -41,7 +50,11 @@ class Particle:
 
         self.mu_eta = np.c_[np.zeros(dim_context)]
         self.SIGMA_eta = np.identity(dim_context) * self.sigma2_xi
-        eta = self.random.multivariate_normal(self.mu_eta.reshape(-1), self.SIGMA_eta)
+        eta = self.random.multivariate_normal(
+            self.mu_eta.reshape(-1),
+            self.SIGMA_eta,
+            method=self.multivariate_normal_method,
+        )
         self.eta = np.c_[eta]
 
     def mu_w(self) -> np.ndarray:
@@ -78,7 +91,11 @@ class Particle:
         )
         self.SIGMA_eta += Id - G.dot(Q).dot(G.T)
 
-        eta = self.random.multivariate_normal(self.mu_eta.reshape(-1), self.SIGMA_eta)
+        eta = self.random.multivariate_normal(
+            self.mu_eta.reshape(-1),
+            self.SIGMA_eta,
+            method=self.multivariate_normal_method,
+        )
         self.eta = np.c_[eta]
 
     def update_params(self, reward: float, x: np.ndarray) -> None:
@@ -107,7 +124,9 @@ class Particle:
         )
 
         sigma2 = stats.invgamma.rvs(alpha_p, scale=beta_p, random_state=self.random)
-        v = self.random.multivariate_normal(mu_p.reshape(-1), sigma2 * SIGMA_p)
+        v = self.random.multivariate_normal(
+            mu_p.reshape(-1), sigma2 * SIGMA_p, method=self.multivariate_normal_method
+        )
 
         self.mu_c, self.mu_theta = [np.c_[mu_] for mu_ in np.split(mu_p, 2)]
         self.SIGMA_c, _, _, self.SIGMA_theta = sum(
@@ -131,10 +150,12 @@ class Particles:
         dim_context: int,
         num_particles: int,
         sigma2_xi: float,
-        rs: np.random.RandomState,
+        rs: np.random.Generator,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
         self.dim_context = dim_context
         self.random = rs
+        self.multivariate_normal_method = multivariate_normal_method
         self.num_particles = num_particles
         self.P = [
             Particle(dim_context, sigma2_xi, self.random) for p in range(num_particles)
@@ -143,7 +164,9 @@ class Particles:
     def eval(self, x: np.ndarray) -> float:
         mu = self._mu_wk().reshape(-1)
         SIGMA = self._SIGMA_wk()
-        wk = self.random.multivariate_normal(mu, SIGMA)
+        wk = self.random.multivariate_normal(
+            mu, SIGMA, method=self.multivariate_normal_method
+        )
         return cast(float, x.T.dot(wk)[0])
 
     def update(self, reward: float, x: np.ndarray) -> None:
@@ -195,13 +218,20 @@ class TimeVaryingThompsonSampling:
         num_particles: int = 1,
         sigma2_xi: float = 1.0,
         seed: Optional[int] = None,
+        multivariate_normal_method: Literal["svd", "eigh", "cholesky"] = "svd",
     ) -> None:
-        self.random = np.random.RandomState(seed)
+        self.random = np.random.default_rng(seed)
 
         self.num_arms = num_arms
         self.dim_context = dim_context
         self.filters = [
-            Particles(dim_context, num_particles, sigma2_xi, self.random)
+            Particles(
+                dim_context,
+                num_particles,
+                sigma2_xi,
+                self.random,
+                multivariate_normal_method,
+            )
             for _ in range(num_arms)
         ]
 

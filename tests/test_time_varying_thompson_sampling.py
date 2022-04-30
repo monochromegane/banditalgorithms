@@ -48,8 +48,8 @@ def test_time_varying_thompson_sampling_particle_update_eta() -> None:
     for _ in range(100):
         particle.update_eta(reward, x)
 
-    assert np.allclose(particle.mu_eta, np.array([[9.99167151]]))
-    assert np.allclose(particle.mu_w(), np.array([[9.99167151]]))  # close reward
+    assert np.allclose(particle.mu_eta, np.array([[8.94873963]]))
+    assert np.allclose(particle.mu_w(), np.array([[8.94873963]]))  # around reward
 
 
 def test_time_varying_thompson_sampling_particle_update_params() -> None:
