@@ -38,10 +38,11 @@ def test_decay_linucb_ucb_scores() -> None:
     x = np.c_[np.array(ctx)]
 
     exp_sum_reward = 0.0
-    exp_sum_count = 1.0  # +1 is due to np.eye when its initialize
+    exp_sum_count = 0.0
     for reward in rewards:
         exp_sum_reward = (exp_sum_reward * gamma) + reward
         exp_sum_count = (exp_sum_count * gamma) + 1.0
+    exp_sum_count += 1.0  # +1 is due to add np.eye before its inverse
 
     for reward in rewards:
         algo.update(idx_arm, reward, ctx)

@@ -12,7 +12,7 @@ class DecayLinUCB:
         self.alpha = alpha
         self.gamma = gamma
 
-        self.As = [np.eye(dim_context) for _ in range(num_arms)]
+        self.As = [np.zeros([dim_context, dim_context]) for _ in range(num_arms)]
         self.bs = [np.zeros([dim_context, 1]) for _ in range(num_arms)]
         self.cache_invAs: List[Optional[np.ndarray]] = [None for _ in range(num_arms)]
 
@@ -42,6 +42,8 @@ class DecayLinUCB:
 
     def _cache_invA(self, idx_arm: int) -> np.ndarray:
         if self.cache_invAs[idx_arm] is None:
-            self.cache_invAs[idx_arm] = np.linalg.inv(self.As[idx_arm])
+            self.cache_invAs[idx_arm] = np.linalg.inv(
+                self.As[idx_arm] + np.eye(self.dim_context)
+            )
 
         return cast(np.ndarray, self.cache_invAs[idx_arm])
