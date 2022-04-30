@@ -158,7 +158,13 @@ class Particles:
         self.multivariate_normal_method = multivariate_normal_method
         self.num_particles = num_particles
         self.P = [
-            Particle(dim_context, sigma2_xi, self.random) for p in range(num_particles)
+            Particle(
+                dim_context,
+                sigma2_xi,
+                self.random,
+                multivariate_normal_method=self.multivariate_normal_method,
+            )
+            for p in range(num_particles)
         ]
 
     def eval(self, x: np.ndarray) -> float:
