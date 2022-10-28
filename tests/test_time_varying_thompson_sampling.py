@@ -123,7 +123,7 @@ def test_time_varying_thompson_sampling_particles_SIGMA_wk() -> None:
     particles = algo.filters[0]
     SIGMA_P0 = np.array([[1.0, 2.0], [3.0, 4.0]])
     SIGMA_P1 = np.array([[3.0, 4.0], [5.0, 6.0]])
-    expectSIGMA = sum([SIGMA_P0, SIGMA_P1]) / num_particles ** 2
+    expectSIGMA = sum([SIGMA_P0, SIGMA_P1]) / num_particles**2
 
     with patch.object(particles.P[0], "SIGMA_w", return_value=SIGMA_P0):
         with patch.object(particles.P[1], "SIGMA_w", return_value=SIGMA_P1):

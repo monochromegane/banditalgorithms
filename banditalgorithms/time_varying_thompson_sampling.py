@@ -193,7 +193,7 @@ class Particles:
 
     def _SIGMA_wk(self) -> np.ndarray:
         SIGMA = sum([p.sigma2_epsilon * p.SIGMA_w() for p in self.P]) / (
-            self.num_particles ** 2
+            self.num_particles**2
         )
         return cast(np.ndarray, SIGMA)
 
